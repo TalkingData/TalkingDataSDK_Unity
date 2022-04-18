@@ -385,7 +385,7 @@ public static class TalkingDataSDK
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("OnProfileUpdate", profile.javaObj);
+                talkingdataClass.CallStatic("onProfileUpdate", profile.javaObj);
             }
 #endif
 #if  UNITY_IPHONE
