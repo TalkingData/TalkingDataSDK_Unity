@@ -163,7 +163,6 @@ public static class TalkingDataSDK
     private static extern void TDOnTrialFinished(string profileId, string content);
 #endif
 
-#if TD_CUSTOM
     [DllImport("__Internal")]
     private static extern void TDOnEvent(string eventId, double eventValue, string parameters);
 
@@ -172,7 +171,6 @@ public static class TalkingDataSDK
 
     [DllImport("__Internal")]
     private static extern void TDRemoveGlobalKV(string key);
-#endif
 #endif
 
 #if UNITY_ANDROID
@@ -938,7 +936,10 @@ public static class TalkingDataSDK
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("setGlobalKV", key, val);
+                AndroidJavaObject valObject = typeof(string).IsInstanceOfType(val)
+                                            ? new AndroidJavaObject("java.lang.String", val)
+                                            : new AndroidJavaObject("java.lang.Double", "" + val);
+                talkingdataClass.CallStatic("setGlobalKV", key, valObject);
             }
 #endif
 #if UNITY_IPHONE
