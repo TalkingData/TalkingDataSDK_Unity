@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 public class TDDemoScript : MonoBehaviour
 {
@@ -316,7 +317,7 @@ public class TDDemoScript : MonoBehaviour
                 { "StringValue", "Pi" },
                 { "NumberValue", 3.14 }
             };
-            TalkingDataSDK.OnEvent("action_id", 9.11, dic);
+            TalkingDataSDK.OnEvent("action_id", dic);
         }
     }
 

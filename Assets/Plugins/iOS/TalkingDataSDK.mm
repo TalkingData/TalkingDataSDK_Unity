@@ -428,7 +428,7 @@ void TDOnTrialFinished(const char *profileId, const char *content) {
 }
 #endif
 
-void TDOnEvent(const char *eventId, double eventValue, const char *parameters) {
+void TDOnEvent(const char *eventId, const char *parameters) {
     NSString *parameterStr = TDCreateNSString(parameters);
     NSDictionary *parameterDic = nil;
     if (parameterStr) {
@@ -436,7 +436,6 @@ void TDOnEvent(const char *eventId, double eventValue, const char *parameters) {
         parameterDic = [NSJSONSerialization JSONObjectWithData:parameterData options:0 error:nil];
     }
     [TalkingDataSDK onEvent:TDCreateNSString(eventId)
-                      value:eventValue
                  parameters:parameterDic];
 }
 

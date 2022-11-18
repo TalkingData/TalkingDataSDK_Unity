@@ -1,4 +1,4 @@
-// version: 5.0.0
+// version: 5.0.1
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -164,7 +164,7 @@ public static class TalkingDataSDK
 #endif
 
     [DllImport("__Internal")]
-    private static extern void TDOnEvent(string eventId, double eventValue, string parameters);
+    private static extern void TDOnEvent(string eventId, string parameters);
 
     [DllImport("__Internal")]
     private static extern void TDSetGlobalKV(string key, string strVal, double numVal);
@@ -217,8 +217,6 @@ public static class TalkingDataSDK
             if (talkingdataClass != null)
             {
                 talkingdataClass.CallStatic("onPause", GetCurrentActivity());
-                talkingdataClass = null;
-                unityPlayerClass = null;
             }
 #endif
         }
@@ -865,7 +863,7 @@ public static class TalkingDataSDK
     }
 #endif
 
-    public static void OnEvent(string eventId, double eventValue, Dictionary<string, object> parameters)
+    public static void OnEvent(string eventId, Dictionary<string, object> parameters)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
@@ -886,12 +884,12 @@ public static class TalkingDataSDK
                             : new AndroidJavaObject("java.lang.Double", "" + kvp.Value);
                         AndroidJNI.CallObjectMethod(map.GetRawObject(), method_Put, AndroidJNIHelper.CreateJNIArgArray(args));
                     }
-                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, eventValue, map);
+                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, map);
                     map.Dispose();
                 }
                 else
                 {
-                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, eventValue, null);
+                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, null);
                 }
             }
 #endif
@@ -919,11 +917,11 @@ public static class TalkingDataSDK
                 }
                 parameterStr = parameterStr.TrimEnd(',');
                 parameterStr += "}";
-                TDOnEvent(eventId, eventValue, parameterStr);
+                TDOnEvent(eventId, parameterStr);
             }
             else
             {
-                TDOnEvent(eventId, eventValue, null);
+                TDOnEvent(eventId, null);
             }
 #endif
         }
