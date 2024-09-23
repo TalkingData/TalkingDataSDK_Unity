@@ -1,4 +1,4 @@
-// version: 5.0.1
+// version: 5.0.2
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -21,7 +21,10 @@ public static class TalkingDataSDK
 
 #if UNITY_IPHONE
     [DllImport("__Internal")]
-    private static extern void TDInit(string appId, string channelId, string custom);
+    private static extern void TDInitSDK(string appId, string channelId, string custom);
+
+    [DllImport("__Internal")]
+    private static extern void TDStartA();
 
     [DllImport("__Internal")]
     private static extern void TDBackgroundSessionEnabled();
@@ -45,10 +48,10 @@ public static class TalkingDataSDK
     private static extern void TDOnReceiveDeepLink(string url);
 
     [DllImport("__Internal")]
-    private static extern void TDOnRegister(string profileId, string profileJson, string invitationCode);
+    private static extern void TDOnRegister(string profileId, string profileJson, string invitationCode, string eventValueJson);
 
     [DllImport("__Internal")]
-    private static extern void TDOnLogin(string profileId, string profileJson);
+    private static extern void TDOnLogin(string profileId, string profileJson, string eventValueJson);
 
     [DllImport("__Internal")]
     private static extern void TDOnProfileUpdate(string profileJson);
@@ -57,10 +60,10 @@ public static class TalkingDataSDK
     private static extern void TDOnCreateCard(string profileId, string method, string content);
 
     [DllImport("__Internal")]
-    private static extern void TDOnFavorite(string category, string content);
+    private static extern void TDOnFavorite(string category, string content, string eventValueJson);
 
     [DllImport("__Internal")]
-    private static extern void TDOnShare(string profileId, string content);
+    private static extern void TDOnShare(string profileId, string content, string eventValueJson);
 
     [DllImport("__Internal")]
     private static extern void TDOnPunch(string profileId, string punchId);
@@ -95,16 +98,16 @@ public static class TalkingDataSDK
 
 #if TD_RETAIL
     [DllImport("__Internal")]
-    private static extern void TDOnViewItem(string itemId, string category, string name, int unitPrice);
+    private static extern void TDOnViewItem(string itemId, string category, string name, int unitPrice, string eventValueJson);
 
     [DllImport("__Internal")]
-    private static extern void TDOnAddItemToShoppingCart(string item, string category, string name, int unitPrice, int amount);
+    private static extern void TDOnAddItemToShoppingCart(string item, string category, string name, int unitPrice, int amount, string eventValueJson);
 
     [DllImport("__Internal")]
     private static extern void TDOnViewShoppingCart(string shoppingCartJson);
 
     [DllImport("__Internal")]
-    private static extern void TDOnPlaceOrder(string orderJson, string profileId);
+    private static extern void TDOnPlaceOrder(string orderJson, string profileId, string eventValueJson);
 
     [DllImport("__Internal")]
     private static extern void TDOnOrderPaySucc(string orderJson, string paymentType, string profileId);
@@ -164,7 +167,7 @@ public static class TalkingDataSDK
 #endif
 
     [DllImport("__Internal")]
-    private static extern void TDOnEvent(string eventId, string parameters);
+    private static extern void TDOnEvent(string eventId, string parameters, string eventValueJson);
 
     [DllImport("__Internal")]
     private static extern void TDSetGlobalKV(string key, string strVal, double numVal);
@@ -183,9 +186,62 @@ public static class TalkingDataSDK
         AndroidJavaObject activity = unityPlayerClass.GetStatic<AndroidJavaObject>("currentActivity");
         return activity;
     }
+
+    private static AndroidJavaObject DictionaryToAndroidMap(Dictionary<string, object> parameters)
+    {
+        AndroidJavaObject map = null;
+        if (parameters != null && parameters.Count > 0)
+        {
+            int count = parameters.Count;
+            map = new AndroidJavaObject("java.util.HashMap", count);
+            IntPtr method_Put = AndroidJNIHelper.GetMethodID(map.GetRawClass(), "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+            object[] args = new object[2];
+            foreach (KeyValuePair<string, object> kvp in parameters)
+            {
+                args[0] = new AndroidJavaObject("java.lang.String", kvp.Key);
+                args[1] = typeof(string).IsInstanceOfType(kvp.Value)
+                    ? new AndroidJavaObject("java.lang.String", kvp.Value)
+                    : new AndroidJavaObject("java.lang.Double", "" + kvp.Value);
+                AndroidJNI.CallObjectMethod(map.GetRawObject(), method_Put, AndroidJNIHelper.CreateJNIArgArray(args));
+            }
+        }
+        return map;
+    }
 #endif
 
-    public static void Init(string appId, string channelId, string custom)
+#if UNITY_IPHONE
+    private static string DictionaryToJSONString(Dictionary<string, object> parameters)
+    {
+        string json = null;
+        if (parameters != null && parameters.Count > 0)
+        {
+            json = "{";
+            foreach (KeyValuePair<string, object> kvp in parameters)
+            {
+                if (kvp.Value is string)
+                {
+                    json += "\"" + kvp.Key + "\":\"" + kvp.Value + "\",";
+                }
+                else
+                {
+                    try
+                    {
+                        double tmp = System.Convert.ToDouble(kvp.Value);
+                        json += "\"" + kvp.Key + "\":" + tmp + ",";
+                    }
+                    catch (System.Exception)
+                    {
+                    }
+                }
+            }
+            json = json.TrimEnd(',');
+            json += "}";
+        }
+        return json;
+    }
+#endif
+
+    public static void InitSDK(string appId, string channelId, string custom)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
@@ -200,11 +256,28 @@ public static class TalkingDataSDK
                 talkingdataClass = new AndroidJavaClass(TALKINGDATA_CLASS);
             }
             AndroidJavaObject activity = GetCurrentActivity();
-            talkingdataClass.CallStatic("init", activity, appId, channelId, custom);
-            talkingdataClass.CallStatic("onResume", activity);
+            talkingdataClass.CallStatic("initSDK", activity, appId, channelId, custom);
 #endif
 #if UNITY_IPHONE
-            TDInit(appId, channelId, custom);
+            TDInitSDK(appId, channelId, custom);
+#endif
+        }
+    }
+
+    public static void StartA()
+    {
+        if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
+        {
+#if UNITY_ANDROID
+            if (talkingdataClass != null)
+            {
+                AndroidJavaObject activity = GetCurrentActivity();
+                talkingdataClass.CallStatic("startA", activity);
+                talkingdataClass.CallStatic("onResume", activity);
+            }
+#endif
+#if UNITY_IPHONE
+            TDStartA();
 #endif
         }
     }
@@ -342,34 +415,46 @@ public static class TalkingDataSDK
         }
     }
 
-    public static void OnRegister(string profileId, TalkingDataProfile profile, string invitationCode)
+    public static void OnRegister(string profileId, TalkingDataProfile profile, string invitationCode, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onRegister", profileId, profile.javaObj, invitationCode);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onRegister", profileId, profile.javaObj, invitationCode, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnRegister(profileId, profile.ToString(), invitationCode);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnRegister(profileId, profile.ToString(), invitationCode, eventValueJson);
 #endif
         }
     }
 
-    public static void OnLogin(string profileId, TalkingDataProfile profile)
+    public static void OnLogin(string profileId, TalkingDataProfile profile, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onLogin", profileId, profile.javaObj);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onLogin", profileId, profile.javaObj, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnLogin(profileId, profile.ToString());
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnLogin(profileId, profile.ToString(), eventValueJson);
 #endif
         }
     }
@@ -405,34 +490,46 @@ public static class TalkingDataSDK
         }
     }
 
-    public static void OnFavorite(string category, string content)
+    public static void OnFavorite(string category, string content, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onFavorite", category, content);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onFavorite", category, content, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnFavorite(category, content);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnFavorite(category, content, eventValueJson);
 #endif
         }
     }
 
-    public static void OnShare(string profileId, string content)
+    public static void OnShare(string profileId, string content, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onShare", profileId, content);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onShare", profileId, content, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnShare(profileId, content);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnShare(profileId, content, eventValueJson);
 #endif
         }
     }
@@ -560,34 +657,46 @@ public static class TalkingDataSDK
 #endif
 
 #if TD_RETAIL
-    public static void OnViewItem(string itemId, string category, string name, int unitPrice)
+    public static void OnViewItem(string itemId, string category, string name, int unitPrice, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onViewItem", itemId, category, name, unitPrice);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onViewItem", itemId, category, name, unitPrice, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnViewItem(itemId, category, name, unitPrice);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnViewItem(itemId, category, name, unitPrice, eventValueJson);
 #endif
         }
     }
 
-    public static void OnAddItemToShoppingCart(string itemId, string category, string name, int unitPrice, int amount)
+    public static void OnAddItemToShoppingCart(string itemId, string category, string name, int unitPrice, int amount, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onAddItemToShoppingCart", itemId, category, name, unitPrice, amount);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onAddItemToShoppingCart", itemId, category, name, unitPrice, amount, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnAddItemToShoppingCart(itemId, category, name, unitPrice, amount);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnAddItemToShoppingCart(itemId, category, name, unitPrice, amount, eventValueJson);
 #endif
         }
     }
@@ -608,18 +717,24 @@ public static class TalkingDataSDK
         }
     }
 
-    public static void OnPlaceOrder(TalkingDataOrder order, string profileId)
+    public static void OnPlaceOrder(TalkingDataOrder order, string profileId, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                talkingdataClass.CallStatic("onPlaceOrder", order.javaObj, profileId);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onPlaceOrder", order.javaObj, profileId, eventValueMap);
+                if (eventValueMap != null)
+                {
+                    eventValueMap.Dispose();
+                }
             }
 #endif
 #if UNITY_IPHONE
-            TDOnPlaceOrder(order.ToString(), profileId);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnPlaceOrder(order.ToString(), profileId, eventValueJson);
 #endif
         }
     }
@@ -863,66 +978,30 @@ public static class TalkingDataSDK
     }
 #endif
 
-    public static void OnEvent(string eventId, Dictionary<string, object> parameters)
+    public static void OnEvent(string eventId, Dictionary<string, object> parameters, Dictionary<string, object> eventValue)
     {
         if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
         {
 #if UNITY_ANDROID
             if (talkingdataClass != null)
             {
-                if (parameters != null && parameters.Count > 0)
+                AndroidJavaObject parametersMap = DictionaryToAndroidMap(parameters);
+                AndroidJavaObject eventValueMap = DictionaryToAndroidMap(eventValue);
+                talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, parametersMap, eventValueMap);
+                if (parametersMap != null)
                 {
-                    int count = parameters.Count;
-                    AndroidJavaObject map = new AndroidJavaObject("java.util.HashMap", count);
-                    IntPtr method_Put = AndroidJNIHelper.GetMethodID(map.GetRawClass(), "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
-                    object[] args = new object[2];
-                    foreach (KeyValuePair<string, object> kvp in parameters)
-                    {
-                        args[0] = new AndroidJavaObject("java.lang.String", kvp.Key);
-                        args[1] = typeof(string).IsInstanceOfType(kvp.Value)
-                            ? new AndroidJavaObject("java.lang.String", kvp.Value)
-                            : new AndroidJavaObject("java.lang.Double", "" + kvp.Value);
-                        AndroidJNI.CallObjectMethod(map.GetRawObject(), method_Put, AndroidJNIHelper.CreateJNIArgArray(args));
-                    }
-                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, map);
-                    map.Dispose();
+                    parametersMap.Dispose();
                 }
-                else
+                if (eventValueMap != null)
                 {
-                    talkingdataClass.CallStatic("onEvent", GetCurrentActivity(), eventId, null);
+                    eventValueMap.Dispose();
                 }
             }
 #endif
 #if UNITY_IPHONE
-            if (parameters != null && parameters.Count > 0)
-            {
-                string parameterStr = "{";
-                foreach (KeyValuePair<string, object> kvp in parameters)
-                {
-                    if (kvp.Value is string)
-                    {
-                        parameterStr += "\"" + kvp.Key + "\":\"" + kvp.Value + "\",";
-                    }
-                    else
-                    {
-                        try
-                        {
-                            double tmp = System.Convert.ToDouble(kvp.Value);
-                            parameterStr += "\"" + kvp.Key + "\":" + tmp + ",";
-                        }
-                        catch (System.Exception)
-                        {
-                        }
-                    }
-                }
-                parameterStr = parameterStr.TrimEnd(',');
-                parameterStr += "}";
-                TDOnEvent(eventId, parameterStr);
-            }
-            else
-            {
-                TDOnEvent(eventId, null);
-            }
+            string parametersJson = DictionaryToJSONString(parameters);
+            string eventValueJson = DictionaryToJSONString(eventValue);
+            TDOnEvent(eventId, parametersJson, eventValueJson);
 #endif
         }
     }

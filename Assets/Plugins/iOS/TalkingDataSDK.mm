@@ -13,18 +13,28 @@ static NSString *TDCreateNSString(const char *string) {
     return string ? [NSString stringWithUTF8String:string] : nil;
 }
 
+static NSDictionary *TDCreateNSDictionary(const char *json) {
+    NSString *valStr = TDCreateNSString(json);
+    NSData *valData = [valStr dataUsingEncoding:NSUTF8StringEncoding];
+    return [NSJSONSerialization JSONObjectWithData:valData options:0 error:nil];
+}
+
 static char *tdDeviceId = NULL;
 
 extern "C" {
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-void TDInit(const char *appId, const char *channelId, const char *custom) {
+void TDInitSDK(const char *appId, const char *channelId, const char *custom) {
     if ([TalkingDataSDK respondsToSelector:@selector(setFrameworkTag:)]) {
         [TalkingDataSDK performSelector:@selector(setFrameworkTag:) withObject:@2];
     }
-    [TalkingDataSDK init:TDCreateNSString(appId)
-               channelId:TDCreateNSString(channelId)
-                  custom:TDCreateNSString(custom)];
+    [TalkingDataSDK initSDK:TDCreateNSString(appId)
+                  channelId:TDCreateNSString(channelId)
+                     custom:TDCreateNSString(custom)];
+}
+
+void TDStartA() {
+    [TalkingDataSDK startA];
 }
 
 void TDBackgroundSessionEnabled() {
@@ -60,10 +70,8 @@ void TDOnReceiveDeepLink(const char *url) {
     [TalkingDataSDK onReceiveDeepLink:[NSURL URLWithString:TDCreateNSString(url)]];
 }
 
-void TDOnRegister(const char *profileId, const char *profileJson, const char *invitationCode) {
-    NSString *profileStr = TDCreateNSString(profileJson);
-    NSData *profileData = [profileStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *profileDic = [NSJSONSerialization JSONObjectWithData:profileData options:0 error:nil];
+void TDOnRegister(const char *profileId, const char *profileJson, const char *invitationCode, const char *eventValueJson) {
+    NSDictionary *profileDic = TDCreateNSDictionary(profileJson);
     TalkingDataProfile *profile = [TalkingDataProfile createProfile];
     profile.name = [profileDic objectForKey:@"name"];
     NSNumber *typeNum  = [profileDic objectForKey:@"type"];
@@ -90,13 +98,14 @@ void TDOnRegister(const char *profileId, const char *profileJson, const char *in
     profile.property10 = [profileDic objectForKey:@"property10"];
     [TalkingDataSDK onRegister:TDCreateNSString(profileId)
                        profile:profile
-                invitationCode:TDCreateNSString(invitationCode)];
+                invitationCode:TDCreateNSString(invitationCode)
+                    eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
-void TDOnLogin(const char *profileId, const char *profileJson) {
+void TDOnLogin(const char *profileId, const char *profileJson, const char *eventValueJson) {
     NSString *profileStr = TDCreateNSString(profileJson);
     NSData *profileData = [profileStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *profileDic = [NSJSONSerialization JSONObjectWithData:profileData options:0 error:nil];
+    NSDictionary *profileDic = TDCreateNSDictionary(eventValueJson);
     TalkingDataProfile *profile = [TalkingDataProfile createProfile];
     profile.name = [profileDic objectForKey:@"name"];
     NSNumber *typeNum  = [profileDic objectForKey:@"type"];
@@ -122,13 +131,12 @@ void TDOnLogin(const char *profileId, const char *profileJson) {
     profile.property9 = [profileDic objectForKey:@"property9"];
     profile.property10 = [profileDic objectForKey:@"property10"];
     [TalkingDataSDK onLogin:TDCreateNSString(profileId)
-                    profile:profile];
+                    profile:profile
+                 eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
 void TDOnProfileUpdate(const char *profileJson) {
-    NSString *profileStr = TDCreateNSString(profileJson);
-    NSData *profileData = [profileStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *profileDic = [NSJSONSerialization JSONObjectWithData:profileData options:0 error:nil];
+    NSDictionary *profileDic = TDCreateNSDictionary(profileJson);
     TalkingDataProfile *profile = [TalkingDataProfile createProfile];
     profile.name = [profileDic objectForKey:@"name"];
     NSNumber *typeNum  = [profileDic objectForKey:@"type"];
@@ -162,14 +170,16 @@ void TDOnCreateCard(const char *profileId, const char *method, const char *conte
                          content:TDCreateNSString(content)];
 }
 
-void TDOnFavorite(const char *category, const char *content) {
+void TDOnFavorite(const char *category, const char *content, const char *eventValue) {
     [TalkingDataSDK onFavorite:TDCreateNSString(category)
-                       content:TDCreateNSString(content)];
+                       content:TDCreateNSString(content)
+                    eventValue:TDCreateNSDictionary(eventValue)];
 }
 
-void TDOnShare(const char *profileId, const char *content) {
+void TDOnShare(const char *profileId, const char *content, const char *eventValue) {
     [TalkingDataSDK onShare:TDCreateNSString(profileId)
-                    content:TDCreateNSString(content)];
+                    content:TDCreateNSString(content)
+                 eventValue:TDCreateNSDictionary(eventValue)];
 }
 
 void TDOnPunch(const char *profileId, const char *punchId) {
@@ -178,9 +188,7 @@ void TDOnPunch(const char *profileId, const char *punchId) {
 }
 
 void TDOnSearch(const char *searchJson) {
-    NSString *searchStr = TDCreateNSString(searchJson);
-    NSData *searchData = [searchStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *searchDic = [NSJSONSerialization JSONObjectWithData:searchData options:0 error:nil];
+    NSDictionary *searchDic = TDCreateNSDictionary(searchJson);
     TalkingDataSearch *search = [TalkingDataSearch createSearch];
     search.category = [searchDic objectForKey:@"category"];
     search.content = [searchDic objectForKey:@"content"];
@@ -246,25 +254,25 @@ void TDOnBooking(const char *profileId, const char *bookingId, const char *categ
 #endif
 
 #ifdef TD_RETAIL
-void TDOnViewItem(const char *itemId, const char *category, const char *name, int unitPrice) {
+void TDOnViewItem(const char *itemId, const char *category, const char *name, int unitPrice, const char *eventValueJson) {
     [TalkingDataSDK onViewItem:TDCreateNSString(itemId)
                       category:TDCreateNSString(category)
                           name:TDCreateNSString(name)
-                     unitPrice:unitPrice];
+                     unitPrice:unitPrice
+                    eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
-void TDOnAddItemToShoppingCart(const char *itemId, const char *category, const char *name, int unitPrice, int amount) {
+void TDOnAddItemToShoppingCart(const char *itemId, const char *category, const char *name, int unitPrice, int amount, const char *eventValueJson) {
     [TalkingDataSDK onAddItemToShoppingCart:TDCreateNSString(itemId)
                                    category:TDCreateNSString(category)
                                        name:TDCreateNSString(name)
                                   unitPrice:unitPrice
-                                     amount:amount];
+                                     amount:amount
+                                 eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
 void TDOnViewShoppingCart(const char *shoppingCartJson) {
-    NSString *shoppingCartStr = TDCreateNSString(shoppingCartJson);
-    NSData *shoppingCartData = [shoppingCartStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *shoppingCartDic = [NSJSONSerialization JSONObjectWithData:shoppingCartData options:0 error:nil];
+    NSDictionary *shoppingCartDic = TDCreateNSDictionary(shoppingCartJson);
     TalkingDataShoppingCart *shoppingCart = [TalkingDataShoppingCart createShoppingCart];
     NSArray *items = shoppingCartDic[@"items"];
     for (NSDictionary *item in items) {
@@ -277,10 +285,8 @@ void TDOnViewShoppingCart(const char *shoppingCartJson) {
     [TalkingDataSDK onViewShoppingCart:shoppingCart];
 }
 
-void TDOnPlaceOrder(const char *orderJson, const char *profileId) {
-    NSString *orderStr = TDCreateNSString(orderJson);
-    NSData *orderData = [orderStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *orderDic = [NSJSONSerialization JSONObjectWithData:orderData options:0 error:nil];
+void TDOnPlaceOrder(const char *orderJson, const char *profileId, const char *eventValueJson) {
+    NSDictionary *orderDic = TDCreateNSDictionary(orderJson);
     TalkingDataOrder *order = [TalkingDataOrder createOrder:orderDic[@"orderId"]
                                                       total:[orderDic[@"total"] intValue]
                                                currencyType:orderDic[@"currencyType"]];
@@ -293,13 +299,12 @@ void TDOnPlaceOrder(const char *orderJson, const char *profileId) {
                 amount:[item[@"amount"] intValue]];
     }
     [TalkingDataSDK onPlaceOrder:order
-                      profileId:TDCreateNSString(profileId)];
+                       profileId:TDCreateNSString(profileId)
+                      eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
 void TDOnOrderPaySucc(const char *orderJson, const char *paymentType, const char *profileId) {
-    NSString *orderStr = TDCreateNSString(orderJson);
-    NSData *orderData = [orderStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *orderDic = [NSJSONSerialization JSONObjectWithData:orderData options:0 error:nil];
+    NSDictionary *orderDic = TDCreateNSDictionary(orderJson);
     TalkingDataOrder *order = [TalkingDataOrder createOrder:orderDic[@"orderId"]
                                                       total:[orderDic[@"total"] intValue]
                                                currencyType:orderDic[@"currencyType"]];
@@ -317,9 +322,7 @@ void TDOnOrderPaySucc(const char *orderJson, const char *paymentType, const char
 }
 
 void TDOnCancelOrder(const char *orderJson) {
-    NSString *orderStr = TDCreateNSString(orderJson);
-    NSData *orderData = [orderStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *orderDic = [NSJSONSerialization JSONObjectWithData:orderData options:0 error:nil];
+    NSDictionary *orderDic = TDCreateNSDictionary(orderJson);
     TalkingDataOrder *order = [TalkingDataOrder createOrder:orderDic[@"orderId"]
                                                       total:[orderDic[@"total"] intValue]
                                                currencyType:orderDic[@"currencyType"]];
@@ -345,7 +348,7 @@ void TDOnCredit(const char *profileId, int amount, const char *content) {
 void TDOnTransaction(const char *profileId, const char *transactionJson) {
     NSString *transactionStr = TDCreateNSString(transactionJson);
     NSData *transactionData = [transactionStr dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *transactionDic = [NSJSONSerialization JSONObjectWithData:transactionData options:0 error:nil];
+    NSDictionary *transactionDic = TDCreateNSDictionary(transactionJson);
     TalkingDataTransaction *transaction = [TalkingDataTransaction createTransaction];
     transaction.transactionId = [transactionDic objectForKey:@"transactionId"];
     transaction.category = [transactionDic objectForKey:@"category"];
@@ -428,7 +431,7 @@ void TDOnTrialFinished(const char *profileId, const char *content) {
 }
 #endif
 
-void TDOnEvent(const char *eventId, const char *parameters) {
+void TDOnEvent(const char *eventId, const char *parameters, const char *eventValueJson) {
     NSString *parameterStr = TDCreateNSString(parameters);
     NSDictionary *parameterDic = nil;
     if (parameterStr) {
@@ -436,7 +439,8 @@ void TDOnEvent(const char *eventId, const char *parameters) {
         parameterDic = [NSJSONSerialization JSONObjectWithData:parameterData options:0 error:nil];
     }
     [TalkingDataSDK onEvent:TDCreateNSString(eventId)
-                 parameters:parameterDic];
+                 parameters:parameterDic
+                 eventValue:TDCreateNSDictionary(eventValueJson)];
 }
 
 void TDSetGlobalKV(const char *key, const char *strVal, double numVal) {

@@ -63,7 +63,11 @@ public class TDDemoScript : MonoBehaviour
             profile.SetProperty8("property8");
             profile.SetProperty9(9.8);
             profile.SetProperty10("property10");
-            TalkingDataSDK.OnRegister("user01", profile, "123456");
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnRegister("user01", profile, "123456", eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnLogin"))
@@ -83,7 +87,11 @@ public class TDDemoScript : MonoBehaviour
             profile.SetProperty8("property8");
             profile.SetProperty9(9.8);
             profile.SetProperty10("property10");
-            TalkingDataSDK.OnLogin("user01", profile);
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnLogin("user01", profile, eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnProfileUpdate"))
@@ -113,12 +121,20 @@ public class TDDemoScript : MonoBehaviour
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnFavorite"))
         {
-            TalkingDataSDK.OnFavorite("服装", "2019新款");
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnFavorite("服装", "2019新款", eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnShare"))
         {
-            TalkingDataSDK.OnShare("user01", "课程");
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnShare("user01", "课程", eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnPunch"))
@@ -182,12 +198,20 @@ public class TDDemoScript : MonoBehaviour
 #if TD_RETAIL
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnViewItem"))
         {
-            TalkingDataSDK.OnViewItem("A1660", "手机", "iPhone 7", 538800);
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnViewItem("A1660", "手机", "iPhone 7", 538800, eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnAddItemToShoppingCart"))
         {
-            TalkingDataSDK.OnAddItemToShoppingCart("MLH12CH", "电脑", "MacBook Pro", 1388800, 1);
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnAddItemToShoppingCart("MLH12CH", "电脑", "MacBook Pro", 1388800, 1, eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnViewShoppingCart"))
@@ -206,7 +230,11 @@ public class TDDemoScript : MonoBehaviour
             TalkingDataOrder order = TalkingDataOrder.CreateOrder("order01", 2466400, "CNY");
             order.AddItem("A1660", "手机", "iPhone 7", 538800, 2);
             order.AddItem("MLH12CH", "电脑", "MacBook Pro", 1388800, 1);
-            TalkingDataSDK.OnPlaceOrder(order, "user01");
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnPlaceOrder(order, "user01", eventValue);
         }
 
         if (GUI.Button(new Rect(left + i % 2 * (width + spacing), top + step * (i++ / 2), width, height), "OnOrderPaySucc"))
@@ -317,7 +345,11 @@ public class TDDemoScript : MonoBehaviour
                 { "StringValue", "Pi" },
                 { "NumberValue", 3.14 }
             };
-            TalkingDataSDK.OnEvent("action_id", dic);
+            Dictionary<string, object> eventValue = new Dictionary<string, object>
+            {
+                { "key", "value" }
+            };
+            TalkingDataSDK.OnEvent("action_id", dic, eventValue);
         }
     }
 
@@ -326,7 +358,8 @@ public class TDDemoScript : MonoBehaviour
         Debug.Log("Start");
         // TalkingDataSDK.SetVerboseLogDisable();
         TalkingDataSDK.BackgroundSessionEnabled();
-        TalkingDataSDK.Init("your_app_id", "your_channel_id", "your_custom_parameter");
+        TalkingDataSDK.InitSDK("your_app_id", "your_channel_id", "your_custom_parameter");
+        TalkingDataSDK.StartA();
     }
 
     void Update()
