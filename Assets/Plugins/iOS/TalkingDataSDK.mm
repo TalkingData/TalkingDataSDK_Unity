@@ -16,6 +16,10 @@ static NSString *TDCreateNSString(const char *string) {
 static NSDictionary *TDCreateNSDictionary(const char *json) {
     NSString *valStr = TDCreateNSString(json);
     NSData *valData = [valStr dataUsingEncoding:NSUTF8StringEncoding];
+    if (valData == nil) {
+        return nil;
+    }
+    
     return [NSJSONSerialization JSONObjectWithData:valData options:0 error:nil];
 }
 
