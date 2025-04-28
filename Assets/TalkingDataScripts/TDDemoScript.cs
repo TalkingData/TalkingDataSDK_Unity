@@ -357,6 +357,13 @@ public class TDDemoScript : MonoBehaviour
     {
         Debug.Log("Start");
         // TalkingDataSDK.SetVerboseLogDisable();
+        TalkingDataSDKConfig config = TalkingDataSDKConfig.CreateConfig();
+        config.SetIMEIAndMEIDEnabled(false)//不允许收集IMEI和MEID
+                .SetMACEnabled(false)//不允许收集MAC
+                .SetAppListEnabled(false)//不允许收集应用列表
+                .SetLocationEnabled(false)//不允许收集位置信息
+                .SetWifiEnabled(false);//不允许收集网络信息
+        TalkingDataSDK.SetConfig(config);
         TalkingDataSDK.BackgroundSessionEnabled();
         TalkingDataSDK.InitSDK("your_app_id", "your_channel_id", "your_custom_parameter");
         TalkingDataSDK.StartA();

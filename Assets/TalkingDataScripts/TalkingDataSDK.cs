@@ -1,4 +1,4 @@
-// version: 5.0.3
+// version: 5.0.4
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -240,6 +240,20 @@ public static class TalkingDataSDK
         return json;
     }
 #endif
+
+    public static void SetConfig(TalkingDataSDKConfig config)
+    {
+        if (Application.platform != RuntimePlatform.OSXEditor && Application.platform != RuntimePlatform.WindowsEditor)
+        {
+#if UNITY_ANDROID
+            if (talkingdataClass == null)
+            {
+                talkingdataClass = new AndroidJavaClass(TALKINGDATA_CLASS);
+            }
+            talkingdataClass.CallStatic("setConfig", config.javaObj);
+#endif
+        }
+    }
 
     public static void InitSDK(string appId, string channelId, string custom)
     {
